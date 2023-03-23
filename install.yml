@@ -1,0 +1,17 @@
+rinstall: 0.1.0
+pkgs:
+  sundial:
+    type: rust
+    exe:
+      - sundiald
+      - sundialctl
+    licenses:
+      - LICENSE
+    data:
+      - src: dist/org.freedesktop.timedate1.conf
+        dst: dbus-1/system.d/
+      - src: dist/org.freedesktop.timedate1.policy
+        dst: polkit-1/actions/
+      - src: dist/org.freedesktop.timedate1.service
+        dst: dbus-1/system-services/
+        tmpl: true

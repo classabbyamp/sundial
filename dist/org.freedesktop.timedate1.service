@@ -1,0 +1,5 @@
+# vim: ft=ini:
+[D-BUS Service]
+Name=org.freedesktop.timedate1
+Exec=@bindir@/sundiald
+User=root

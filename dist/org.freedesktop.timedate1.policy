@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+    "https://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+
+<policyconfig>
+    <vendor>classabbyamp</vendor>
+    <vendor_url>https://placeviolette.net</vendor_url>
+    <action id="org.freedesktop.timedate1.set-time">
+        <description>Set system time</description>
+        <message>Setting the system time requires authentication.</message>
+        <defaults>
+            <allow_any>auth_admin_keep</allow_any>
+            <allow_inactive>auth_admin_keep</allow_inactive>
+            <allow_active>auth_admin_keep</allow_active>
+        </defaults>
+        <annotate key="org.freedesktop.policykit.imply">org.freedesktop.timedate1.set-timezone org.freedesktop.timedate1.set-ntp</annotate>
+    </action>
+    <action id="org.freedesktop.timedate1.set-timezone">
+        <description>Set timezone</description>
+        <message>Setting the timezone requires authentication.</message>
+        <defaults>
+            <allow_any>auth_admin_keep</allow_any>
+            <allow_inactive>auth_admin_keep</allow_inactive>
+            <allow_active>auth_admin_keep</allow_active>
+        </defaults>
+    </action>
+    <action id="org.freedesktop.timedate1.set-local-rtc">
+        <description>Set RTC to local timezone or UTC</description>
+        <message>Setting the RTC to local or UTC requires authentication.</message>
+        <defaults>
+            <allow_any>auth_admin_keep</allow_any>
+            <allow_inactive>auth_admin_keep</allow_inactive>
+            <allow_active>auth_admin_keep</allow_active>
+        </defaults>
+    </action>
+    <!-- <action id="org.freedesktop.timedate1.set-ntp">
+        <description>Turn network time synchronisation on or off</description>
+        <message>Enabling or disabling network time synchronisation requires authentication.</message>
+        <defaults>
+            <allow_any>auth_admin_keep</allow_any>
+            <allow_inactive>auth_admin_keep</allow_inactive>
+            <allow_active>auth_admin_keep</allow_active>
+        </defaults>
+    </action> -->
+</policyconfig>
+
+<!--
+    vim: ft=xml:
+-->

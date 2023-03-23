@@ -6,7 +6,12 @@ license = "BSD-2-Clause"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+default-run = "sundiald"
+
 [dependencies]
 event-listener = "2.5.3"
-tokio = { version = "1.25.0", features = ["full"] }
+libc = "0.2.139"
+nix = { version = "0.26.2", features = ["time", "ioctl", "fs"], default-features = false }
+tokio = { version = "1.26.0", features = ["full"] }
 zbus = { version = "3.10.0", default-features = false, features = ["tokio"] }
+zbus_polkit = { version = "3.0.0", default-features = false, features = ["tokio"] }
