@@ -6,7 +6,7 @@ use tokio::fs::canonicalize;
 use zbus::{dbus_interface, Connection, fdo};
 use zbus_polkit::policykit1::{AuthorityProxy, Subject, CheckAuthorizationFlags};
 
-use util::{rtc_open, rtc_read, read_lines};
+use util::{rtc_open, rtc_close, rtc_read, read_lines};
 
 mod util;
 
@@ -16,7 +16,6 @@ const MAX_PHASE: libc::c_long = 500_000_000;
 
 struct TimeDate {
     tz: Option<String>,
-    rtc: Result<RawFd, Errno>,
     auth: AuthorityProxy<'static>,
     subject: Subject,
 }
@@ -196,13 +195,16 @@ impl TimeDate {
     /// show the current time in the RTC in µs
     #[dbus_interface(property(emits_changed_signal = "false"), name = "RTCTimeUSec")]
     async fn rtc_time_usec(&self) -> fdo::Result<u64> {
-        // TODO: wtf why is this syscall failing
-        match &self.rtc {
+        match rtc_open() {
             Ok(fd) => {
-                match rtc_read(fd.clone()).await {
-                    Ok(mut tm) => Ok(unsafe { libc::timegm(&mut tm) * SEC_TO_USEC }.try_into().unwrap_or_default()),
+                let ret = match rtc_read(fd.clone()).await {
+                    Ok(tm) => Ok(unsafe { libc::timegm(&mut tm.into()) * SEC_TO_USEC }.try_into().unwrap_or_default()),
                     Err(e) => Err(fdo::Error::Failed(e))
+                };
+                if let Err(e) = rtc_close(fd) {
+                    return Err(fdo::Error::Failed(e.desc().into()));
                 }
+                ret
             },
             Err(e) => Err(fdo::Error::Failed(format!("Couldn't open /dev/rtc: {}", e.desc()))),
         }
@@ -236,7 +238,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let conn = Connection::system().await?;
     let timedate = TimeDate {
         tz: std::env::var("TZ").ok(),
-        rtc: rtc_open(),
         auth: AuthorityProxy::new(&conn).await?,
         subject: Subject::new_for_owner(std::process::id(), None, None)?,
     };

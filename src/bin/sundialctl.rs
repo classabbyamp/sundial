@@ -7,12 +7,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let time = proxy.time_usec().await?;
     let tz = proxy.timezone().await?;
-    let rtctime = proxy.rtctime_usec().await;
+    let ntpsync = proxy.ntpsynchronized().await?;
+    let rtctime = proxy.rtctime_usec().await?;
     let localrtc = proxy.local_rtc().await?;
 
     println!("System time: {}", time);
     println!("System timezone: {}", tz);
-    println!("RTC time: {:?}", rtctime);
+    println!("NTP Synchronized: {}", if ntpsync { "yes" } else { "no" } );
+    println!("RTC time: {}", rtctime);
     println!("RTC timezone: {}", if localrtc { "Local" } else { "UTC"} );
     Ok(())
 }
