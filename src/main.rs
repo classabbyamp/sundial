@@ -1,6 +1,7 @@
 use std::{path::Path, os::fd::RawFd};
 
 use enumflags2::BitFlag;
+use libc::BLKSSZGET;
 use nix::errno::Errno;
 use tokio::fs::canonicalize;
 use zbus::{dbus_interface, Connection, fdo};
