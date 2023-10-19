@@ -1,0 +1,61 @@
+.Dd October 19, 2023
+.Dt SUNDIALCTL 1
+.Os
+.Sh NAME
+.Nm sundialctl
+.Nd Command-line interface for org.freedesktop.timedate1
+.Sh SYNOPSIS
+.Nm
+.Ar COMMAND
+.Op OPTIONS...
+.Sh DESCRIPTION
+TODO
+.Sh COMMANDS
+.Bl -tag -width x
+.It Nm status
+Show the current time and date settings.
+.It Nm show
+Show the current time and date settnigs in a machine-readable format.
+.It Nm set-time Oo Fl n Oc Ar TIME
+Set the system clock to
+.Ar TIME .
+This should be in the format
+.Ar TODO .
+.Bl -tag -width n -compact
+.It Fl n , Fl -noninteractive
+Do not prompt for a password interactively (if necessary).
+.El
+.It Nm set-timezone Oo Fl n Oc Ar ZONE
+Set the system timezone to
+.Ar ZONE .
+.Bl -tag -width n -compact
+.It Fl n , Fl -noninteractive
+Do not prompt for a password interactively (if necessary).
+.El
+.It Nm list-timezones
+List all available timezones.
+.It Nm set-rtc Oo Fl n Oc Oo Fl s Oc Ar MODE
+Set the Real-Time Clock to use UTC or local time.
+Valid values for
+.Ar MODE :
+.Ar utc ,
+.Ar local .
+.Bl -tag -width n -compact
+.It Fl n , Fl -noninteractive
+Do not prompt for a password interactively (if necessary).
+.It Fl s , Fl -sync-from Ar SRC
+After setting the RTC mode, sync the time from the system clock to the RTC or vice versa.
+Valid values:
+.Ar sys ,
+.Ar rtc .
+.El
+.El
+.Sh SEE ALSO
+.Xr sundiald 1 ,
+.Lk https://www.freedesktop.org/software/systemd/man/latest/org.freedesktop.timedate1.html
+.Sh AUTHOR
+.An classabbyamp Aq Mt dev@placeviolette.net
+.Sh BUGS
+Report bugs at
+.Lk https://github.com/classabbyamp/sundial/issues
+

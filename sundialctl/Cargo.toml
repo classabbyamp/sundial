@@ -1,0 +1,14 @@
+[package]
+name = "sundialctl"
+
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow = "1.0.75"
+chrono = { version = "0.4.31", default-features = false, features = ["std"] }
+clap = { workspace = true }
+tokio = { workspace = true }
+zbus = { workspace = true }

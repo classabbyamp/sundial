@@ -20,17 +20,6 @@ Many desktop environments also use this D-Bus interface as the backend for their
 
 > ***Key:** ✅: Required/Works, 🟨: Optional, ❌: Not used/Does not work, ❔: Untested*
 
-**Required:**
-
-- Budgie
-- Cinnamon
-- GNOME
-
-**Optional:**
-
-- KDE Plasma (has "legacy" methods to fall back to if the D-Bus interface is unavailable)
-- 
-
 ## Installation
 
 with [rinstall](https://github.com/danyspin97/rinstall):

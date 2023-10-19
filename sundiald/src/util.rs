@@ -1,6 +1,12 @@
-use std::{os::fd::RawFd, path::Path, io::{self, BufRead}, ffi::c_int, ptr::addr_of};
+use std::{
+    ffi::c_int,
+    io::{self, BufRead},
+    os::fd::RawFd,
+    path::Path,
+    ptr::addr_of,
+};
 
-use nix::{ioctl_read, fcntl::OFlag, sys::stat::Mode, errno::Errno};
+use nix::{errno::Errno, fcntl::OFlag, ioctl_read, sys::stat::Mode};
 use tokio::fs::File;
 
 // see linux/rtc.h
@@ -56,26 +62,32 @@ const RTC_MAGIC: u8 = b'p';
 const RTC_RD_TIME_ID: u8 = 0x09;
 const RTC_SET_TIME_ID: u8 = 0x0a;
 
-ioctl_read!(rtc_rd_time, RTC_MAGIC, RTC_RD_TIME_ID, RtcTime);
+ioctl_read!(rtc_read_time, RTC_MAGIC, RTC_RD_TIME_ID, RtcTime);
 ioctl_read!(rtc_set_time, RTC_MAGIC, RTC_SET_TIME_ID, RtcTime);
 
-pub fn rtc_open() -> Result<RawFd, Errno> {
-    nix::fcntl::open("/dev/rtc", OFlag::O_RDONLY | OFlag::O_CLOEXEC, Mode::empty())
+pub(crate) fn rtc_open() -> Result<RawFd, Errno> {
+    nix::fcntl::open(
+        "/dev/rtc",
+        OFlag::O_RDONLY | OFlag::O_CLOEXEC,
+        Mode::empty(),
+    )
 }
 
-pub fn rtc_close(fd: RawFd) -> nix::Result<()> {
+pub(crate) fn rtc_close(fd: RawFd) -> nix::Result<()> {
     nix::unistd::close(fd)
 }
 
-pub async fn rtc_read(fd: RawFd) -> Result<RtcTime, String> {
+pub(crate) async fn rtc_read(fd: RawFd) -> Result<RtcTime, String> {
     let mut buf: RtcTime = unsafe { std::mem::zeroed() };
-    match unsafe { rtc_rd_time(fd, &mut buf) } {
+    match unsafe { rtc_read_time(fd, &mut buf) } {
         Ok(_) => Ok(buf),
         Err(e) => Err(e.desc().into()),
     }
 }
 
-pub async fn read_lines<P: AsRef<Path>>(fp: P) -> io::Result<io::Lines<io::BufReader<std::fs::File>>> {
+pub(crate) async fn read_lines<P: AsRef<Path>>(
+    fp: P,
+) -> io::Result<io::Lines<io::BufReader<std::fs::File>>> {
     let f = File::open(fp).await?.into_std().await;
     // TODO: use async
     Ok(io::BufReader::new(f).lines())

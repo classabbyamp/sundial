@@ -1,19 +1,17 @@
-[package]
-name = "sundiald"
+[workspace]
+members = [
+    "sundiald",
+    "sundialctl",
+]
+resolver = "2"
+
+[workspace.package]
 version = "0.1.0"
 edition = "2021"
+authors = ["classabbyamp <dev@placeviolette.net>"]
 license = "BSD-2-Clause"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-default-run = "sundiald"
-
-[dependencies]
-caps = "0.5.5"
-enumflags2 = "0.7.5"
-event-listener = "2.5.3"
-libc = "0.2.139"
-nix = { version = "0.26.2", features = ["time", "ioctl", "fs"], default-features = false }
+[workspace.dependencies]
+clap = { version = "4.4.6", features = ["derive"] }
 tokio = { version = "1.26.0", features = ["full"] }
 zbus = { version = "3.10.0", default-features = false, features = ["tokio"] }
-zbus_polkit = { version = "3.0.0", default-features = false, features = ["tokio"] }
