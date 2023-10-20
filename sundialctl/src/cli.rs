@@ -12,13 +12,13 @@ pub(crate) struct Cli {
 
 #[derive(Subcommand, Debug)]
 pub(crate) enum Commands {
-    /// Show current time and date settings (default)
+    /// Show current time and date settings (default action)
     Status,
     /// Show current time and date settings in a machine-readable format
     Show,
     /// Set the system clock
     SetTime {
-        /// The new time
+        /// The new time. Various formats are supported, see sundialctl(1) for more information
         time: String,
         /// Do not ask for a password (if necessary)
         #[arg(short, long)]

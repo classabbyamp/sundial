@@ -12,6 +12,7 @@ authors = ["classabbyamp <dev@placeviolette.net>"]
 license = "BSD-2-Clause"
 
 [workspace.dependencies]
+anyhow = "1.0.75"
 clap = { version = "4.4.6", features = ["derive"] }
 tokio = { version = "1.26.0", features = ["full"] }
 zbus = { version = "3.10.0", default-features = false, features = ["tokio"] }

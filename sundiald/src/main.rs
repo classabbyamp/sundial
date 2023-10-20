@@ -1,3 +1,4 @@
+use anyhow::Result;
 use zbus::Connection;
 use zbus_polkit::policykit1::{AuthorityProxy, Subject};
 
@@ -7,7 +8,7 @@ mod dbus;
 mod util;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<()> {
     let conn = Connection::system().await?;
     let timedate = TimeDate {
         tz: std::env::var("TZ").ok(),

@@ -37,10 +37,8 @@ impl TimeDate {
             // get now()
             // now + usec_utc
             // ensure no overflow/underflow
-        } else {
-            if usec_utc <= 0 {
-                return Err(fdo::Error::InvalidArgs("Invalid absolute time".into()));
-            }
+        } else if usec_utc <= 0 {
+            return Err(fdo::Error::InvalidArgs("Invalid absolute time".into()));
         }
 
         // polkit verify
@@ -218,11 +216,11 @@ impl TimeDate {
     async fn rtc_time_usec(&self) -> fdo::Result<u64> {
         match rtc_open() {
             Ok(fd) => {
-                let ret = match rtc_read(fd.clone()).await {
+                let ret = match rtc_read(fd).await {
                     Ok(tm) => Ok(unsafe { libc::timegm(&mut tm.into()) * SEC_TO_USEC }
                         .try_into()
                         .unwrap_or_default()),
-                    Err(e) => Err(fdo::Error::Failed(e)),
+                    Err(e) => Err(fdo::Error::Failed(e.to_string())),
                 };
                 if let Err(e) = rtc_close(fd) {
                     return Err(fdo::Error::Failed(e.desc().into()));

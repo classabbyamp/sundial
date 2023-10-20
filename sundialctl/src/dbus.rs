@@ -1,5 +1,5 @@
 use anyhow::Result;
-use chrono::{DateTime, Utc};
+use parse_datetime::parse_datetime;
 use zbus::dbus_proxy;
 
 use crate::cli::{RtcMode, RtcSyncFrom};
@@ -72,7 +72,9 @@ impl timedate1Proxy<'_> {
     }
 
     pub(crate) async fn set_time_cmd(&self, time: String, interactive: bool) -> Result<()> {
-        self.set_time(0, false, interactive).await?;
+        let tm = parse_datetime(time.as_str())?;
+        self.set_time(tm.timestamp_micros(), false, interactive)
+            .await?;
         Ok(())
     }
 

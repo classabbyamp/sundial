@@ -6,6 +6,7 @@ use std::{
     ptr::addr_of,
 };
 
+use anyhow::Result;
 use nix::{errno::Errno, fcntl::OFlag, ioctl_read, sys::stat::Mode};
 use tokio::fs::File;
 
@@ -77,11 +78,11 @@ pub(crate) fn rtc_close(fd: RawFd) -> nix::Result<()> {
     nix::unistd::close(fd)
 }
 
-pub(crate) async fn rtc_read(fd: RawFd) -> Result<RtcTime, String> {
+pub(crate) async fn rtc_read(fd: RawFd) -> Result<RtcTime, Errno> {
     let mut buf: RtcTime = unsafe { std::mem::zeroed() };
     match unsafe { rtc_read_time(fd, &mut buf) } {
         Ok(_) => Ok(buf),
-        Err(e) => Err(e.desc().into()),
+        Err(e) => Err(e),
     }
 }
 
