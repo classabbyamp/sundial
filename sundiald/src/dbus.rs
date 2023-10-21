@@ -1,19 +1,15 @@
-use std::{os::fd::RawFd, path::Path};
-
 use enumflags2::BitFlag;
 use nix::errno::Errno;
 use tokio::fs::canonicalize;
 use zbus::{dbus_interface, fdo};
 use zbus_polkit::policykit1::{AuthorityProxy, CheckAuthorizationFlags, Subject};
 
-use crate::util::{read_lines, rtc_close, rtc_open, rtc_read};
+use crate::util::{get_hwclock, read_lines, set_hwclock, SEC_TO_USEC};
 
-const SEC_TO_USEC: libc::c_long = 1_000_000;
 const NSEC_TO_USEC: libc::c_long = 1_000;
 const MAX_PHASE: libc::c_long = 500_000_000;
 
 pub(crate) struct TimeDate {
-    pub tz: Option<String>,
     pub auth: AuthorityProxy<'static>,
     pub subject: Subject,
 }
@@ -23,11 +19,7 @@ impl TimeDate {
     /// change the system clock
     async fn set_time(&self, usec_utc: i64, relative: bool, interactive: bool) -> fdo::Result<()> {
         // TODO
-        // https://github.com/systemd/systemd/blob/main/src/timedate/timedated.c#L820
-
-        // get a starting timestamp now
-
-        // TODO: if ntp enabled, fail
+        // get a starting now()
 
         if relative {
             if usec_utc == 0 {
@@ -54,7 +46,6 @@ impl TimeDate {
     /// set the system timezone
     async fn set_timezone(&self, timezone: String, interactive: bool) -> fdo::Result<()> {
         // TODO
-        // https://github.com/systemd/systemd/blob/main/src/timedate/timedated.c#L657
         // check if valid tz (return if not)
         // check if is current tz (return if true)
         // check polkit auth
@@ -64,6 +55,15 @@ impl TimeDate {
         // tzset
         // tell kernel new tz
         // if local rtc, sync rtc from sysclock
+        match self.local_rtc().await {
+            Ok(l) => {
+                if l {
+                    // TODO
+                    // set_hwclock();
+                }
+            }
+            Err(e) => todo!(),
+        }
         Ok(())
     }
 
@@ -76,7 +76,6 @@ impl TimeDate {
         interactive: bool,
     ) -> fdo::Result<()> {
         // TODO
-        // https://github.com/systemd/systemd/blob/main/src/timedate/timedated.c#L734
         // if local_rtc matches current state and not fix_system, return
         let curr = self.local_rtc().await?;
         if local_rtc == curr && !fix_system {
@@ -126,11 +125,8 @@ impl TimeDate {
     /// shows the currently configured time zone
     #[dbus_interface(property)]
     async fn timezone(&self) -> fdo::Result<String> {
+        debug!("Timezone: request received");
         // see hwclock(8)
-        if let Some(tz) = &self.tz {
-            return Ok(tz.to_string());
-        }
-
         match canonicalize("/etc/localtime").await {
             Ok(p) => match p.strip_prefix("/usr/share/zoneinfo/") {
                 Ok(tz) => Ok(tz.to_string_lossy().to_string()),
@@ -146,19 +142,25 @@ impl TimeDate {
     /// shows whether the RTC is configured to use UTC (`false`) or the local time zone (`true`)
     #[dbus_interface(property, name = "LocalRTC")]
     async fn local_rtc(&self) -> fdo::Result<bool> {
+        debug!("LocalRTC: request received");
         // see adjtime_config(5)
         // if /etc/adjtime exists, check 3rd line for "LOCAL" or "UTC"
         match read_lines("/etc/adjtime").await {
-            Err(e) => Err(fdo::Error::Failed(format!(
-                "Couldn't get RTC status: {}",
-                e
-            ))),
             Ok(mut lines) => {
-                if let Some(Ok(ln)) = lines.nth(2) {
-                    Ok(ln == "LOCAL")
+                let res = if let Some(Ok(ln)) = lines.nth(2) {
+                    ln == "LOCAL"
                 } else {
-                    Ok(false) // assume UTC otherwise
-                }
+                    false // assume UTC otherwise
+                };
+                debug!("LocalRTC: success: {res}");
+                Ok(res)
+            }
+            Err(e) => {
+                debug!("LocalRTC: fail: {e}");
+                Err(fdo::Error::Failed(format!(
+                    "Couldn't get RTC status: {}",
+                    e
+                )))
             }
         }
     }
@@ -166,71 +168,77 @@ impl TimeDate {
     /// shows whether a service to perform time synchronization over the network is available
     #[dbus_interface(property, name = "CanNTP")]
     async fn can_ntp(&self) -> fdo::Result<bool> {
+        debug!("CanNTP: request received, ignoring");
+        // TODO: should this just return false?
         Err(fdo::Error::NotSupported("NTP is not supported".into()))
     }
 
     /// shows whether a service to perform time synchronization over the network is enabled
     #[dbus_interface(property, name = "NTP")]
     async fn ntp(&self) -> fdo::Result<bool> {
+        debug!("NTP: request received, ignoring");
+        // TODO: should this just return false?
         Err(fdo::Error::NotSupported("NTP is not supported".into()))
     }
 
     /// shows whether the kernel reports the time as synchronized
     #[dbus_interface(property, name = "NTPSynchronized")]
     async fn ntp_synchronized(&self) -> bool {
+        debug!("NTPSynchronized: request received");
         // see adjtimex(2)
         let mut buf: libc::timex = unsafe { std::mem::zeroed() };
-        if unsafe { libc::adjtimex(&mut buf) } < 0 {
+        let res = if unsafe { libc::adjtimex(&mut buf) } < 0 {
             false
         } else {
             // consider synced if within NTP_PHASE_LIMIT, relying on STA_UNSYNC isn't always reliable
             // see include/linux/timex.h and kernel/time/ntp.c (NTP_PHASE_LIMIT)
             buf.maxerror < ((MAX_PHASE / NSEC_TO_USEC) << 5)
-        }
+        };
+        debug!("NTPSynchronized: result: {res}");
+        res
     }
 
     /// show the current time on the system in µs
     #[dbus_interface(property, name = "TimeUSec")]
     async fn time_usec(&self) -> fdo::Result<u64> {
+        debug!("TimeUSec: request received");
         match nix::time::clock_gettime(nix::time::ClockId::CLOCK_REALTIME) {
-            Ok(ts) => Ok(
-                ((ts.tv_sec() * SEC_TO_USEC) + (ts.tv_nsec() / NSEC_TO_USEC))
+            Ok(ts) => {
+                let t = ((ts.tv_sec() * SEC_TO_USEC) + (ts.tv_nsec() / NSEC_TO_USEC))
                     .try_into()
-                    .unwrap_or_default(),
-            ),
-            Err(e) => match e {
-                Errno::ENOSYS => Err(fdo::Error::NotSupported(
-                    "clock_gettime not supported on this system".into(),
-                )),
-                Errno::EINVAL => Err(fdo::Error::Failed("Unable to get current time".into())),
-                _ => Err(fdo::Error::Failed(format!(
-                    "Unable to get current time: {}",
-                    e.desc()
-                ))),
-            },
+                    .unwrap_or_default();
+                debug!("TimeUSec: success: {t}");
+                Ok(t)
+            }
+            Err(e) => {
+                debug!("TimeUSec: fail: {e}");
+                match e {
+                    Errno::ENOSYS => Err(fdo::Error::NotSupported(
+                        "clock_gettime not supported on this system".into(),
+                    )),
+                    Errno::EINVAL => Err(fdo::Error::Failed("Unable to get current time".into())),
+                    _ => Err(fdo::Error::Failed(format!(
+                        "Unable to get current time: {}",
+                        e.desc()
+                    ))),
+                }
+            }
         }
     }
 
     /// show the current time in the RTC in µs
     #[dbus_interface(property, name = "RTCTimeUSec")]
     async fn rtc_time_usec(&self) -> fdo::Result<u64> {
-        match rtc_open() {
-            Ok(fd) => {
-                let ret = match rtc_read(fd).await {
-                    Ok(tm) => Ok(unsafe { libc::timegm(&mut tm.into()) * SEC_TO_USEC }
-                        .try_into()
-                        .unwrap_or_default()),
-                    Err(e) => Err(fdo::Error::Failed(e.to_string())),
-                };
-                if let Err(e) = rtc_close(fd) {
-                    return Err(fdo::Error::Failed(e.desc().into()));
-                }
-                ret
+        debug!("RTCTimeUSec: request received");
+        match get_hwclock() {
+            Ok(t) => {
+                debug!("RTCTimeUSec: success: {t}");
+                Ok(t)
             }
-            Err(e) => Err(fdo::Error::Failed(format!(
-                "Couldn't open /dev/rtc: {}",
-                e.desc()
-            ))),
+            Err(e) => {
+                debug!("RTCTimeUSec: fail: {e}");
+                Err(fdo::Error::Failed(format!("Failed to get RTC time: {e}")))
+            }
         }
     }
 

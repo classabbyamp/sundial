@@ -15,7 +15,7 @@ pub(crate) enum Commands {
     /// Show current time and date settings (default action)
     Status,
     /// Show current time and date settings in a machine-readable format
-    Show,
+    // Show,
     /// Set the system clock
     SetTime {
         /// The new time. Various formats are supported, see sundialctl(1) for more information

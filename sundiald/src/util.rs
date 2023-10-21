@@ -10,6 +10,8 @@ use anyhow::Result;
 use nix::{errno::Errno, fcntl::OFlag, ioctl_read, sys::stat::Mode};
 use tokio::fs::File;
 
+pub(crate) const SEC_TO_USEC: libc::c_long = 1_000_000;
+
 // see linux/rtc.h
 #[repr(C)]
 pub struct RtcTime {
@@ -66,7 +68,7 @@ const RTC_SET_TIME_ID: u8 = 0x0a;
 ioctl_read!(rtc_read_time, RTC_MAGIC, RTC_RD_TIME_ID, RtcTime);
 ioctl_read!(rtc_set_time, RTC_MAGIC, RTC_SET_TIME_ID, RtcTime);
 
-pub(crate) fn rtc_open() -> Result<RawFd, Errno> {
+fn rtc_open() -> nix::Result<RawFd> {
     nix::fcntl::open(
         "/dev/rtc",
         OFlag::O_RDONLY | OFlag::O_CLOEXEC,
@@ -74,14 +76,56 @@ pub(crate) fn rtc_open() -> Result<RawFd, Errno> {
     )
 }
 
-pub(crate) fn rtc_close(fd: RawFd) -> nix::Result<()> {
+fn rtc_close(fd: RawFd) -> nix::Result<()> {
     nix::unistd::close(fd)
 }
 
-pub(crate) async fn rtc_read(fd: RawFd) -> Result<RtcTime, Errno> {
+fn rtc_read(fd: RawFd) -> nix::Result<RtcTime> {
     let mut buf: RtcTime = unsafe { std::mem::zeroed() };
     match unsafe { rtc_read_time(fd, &mut buf) } {
         Ok(_) => Ok(buf),
+        Err(e) => Err(e),
+    }
+}
+
+fn rtc_write(fd: RawFd, tm: impl Into<RtcTime>) -> nix::Result<()> {
+    let mut buf: RtcTime = tm.into();
+    match unsafe { rtc_set_time(fd, &mut buf) } {
+        Ok(_) => Ok(()),
+        Err(e) => Err(e),
+    }
+}
+
+pub(crate) fn get_hwclock() -> nix::Result<u64> {
+    match rtc_open() {
+        Ok(fd) => {
+            let ret = match rtc_read(fd) {
+                Ok(tm) => Ok((unsafe { libc::timegm(&mut tm.into()) } * SEC_TO_USEC)
+                    .try_into()
+                    .unwrap_or_default()),
+                Err(e) => Err(e),
+            };
+            if let Err(e) = rtc_close(fd) {
+                return Err(e);
+            }
+            ret
+        }
+        Err(e) => Err(e),
+    }
+}
+
+pub(crate) fn set_hwclock(tm: impl Into<RtcTime>) -> nix::Result<()> {
+    match rtc_open() {
+        Ok(fd) => {
+            let ret = match rtc_write(fd, tm) {
+                Ok(_) => Ok(()),
+                Err(e) => Err(e),
+            };
+            if let Err(e) = rtc_close(fd) {
+                return Err(e);
+            }
+            ret
+        }
         Err(e) => Err(e),
     }
 }

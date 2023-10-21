@@ -20,7 +20,7 @@ async fn main() -> Result<()> {
 
     match cli.command.unwrap_or(Commands::Status) {
         Commands::Status => proxy.status_cmd(true).await,
-        Commands::Show => proxy.status_cmd(false).await,
+        // Commands::Show => proxy.status_cmd(false).await,
         Commands::SetTime {
             time,
             noninteractive,
